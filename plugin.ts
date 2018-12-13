@@ -17,7 +17,7 @@ export class TocGroupPlugin extends ConverterComponent {
     const options: Options = this.application.options;
     options.read({}, OptionsReadMode.Prefetch);
 
-    const defaultTags = ['tocGroup', 'kind', 'platform'];
+    const defaultTags = ['group', 'kind', 'platform'];
     const userTags = (options.getValue('toc-group') || '').split(',');
     this.groupTags = defaultTags.concat(userTags);
     this.regexp = new RegExp(`@(${this.groupTags.join('|')})`);

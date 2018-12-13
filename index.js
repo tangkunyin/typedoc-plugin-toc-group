@@ -3,9 +3,9 @@ module.exports = function(PluginHost) {
   var app = PluginHost.owner;
   /**
    * used like so:
-   * --toc-group tocGroup,platform,kind
+   * --toc-group group,kind,platform
    * or
-   * -slt tocGroup,platform,kind
+   * -slt group,kind,platform
    */
   app.options.addDeclaration({ name: 'toc-group', short: 'tocg' });
 
