@@ -19,52 +19,97 @@ var __decorate =
     define([
       'require',
       'exports',
+      'typedoc/dist/lib/models/reflections',
       'typedoc/dist/lib/converter/components',
-      'typedoc/dist/lib/converter/converter',
-      'typedoc/dist/lib/ts-internal',
       'typedoc/dist/lib/utils/options',
+      'typedoc/dist/lib/output/events',
+      'typedoc/dist/lib/output/plugins/TocPlugin',
+      'typedoc/dist/lib/output/models/NavigationItem',
     ], factory);
   }
 })(function(require, exports) {
   'use strict';
   Object.defineProperty(exports, '__esModule', { value: true });
+  var TocGroupPlugin_1;
+  const reflections_1 = require('typedoc/dist/lib/models/reflections');
   const components_1 = require('typedoc/dist/lib/converter/components');
-  const converter_1 = require('typedoc/dist/lib/converter/converter');
-  const _ts = require('typedoc/dist/lib/ts-internal');
   const options_1 = require('typedoc/dist/lib/utils/options');
+  const events_1 = require('typedoc/dist/lib/output/events');
+  const TocPlugin_1 = require('typedoc/dist/lib/output/plugins/TocPlugin');
+  const NavigationItem_1 = require('typedoc/dist/lib/output/models/NavigationItem');
   /**
    * This plugin will generate a group menu for toc list.
    */
-  let TocGroupPlugin = class TocGroupPlugin extends components_1.ConverterComponent {
+  let TocGroupPlugin = (TocGroupPlugin_1 = class TocGroupPlugin extends TocPlugin_1.TocPlugin {
     initialize() {
       const options = this.application.options;
       options.read({}, options_1.OptionsReadMode.Prefetch);
-      const defaultTags = ['tocGroup', 'kind', 'platform'];
+      const defaultTags = ['group', 'kind', 'platform'];
       const userTags = (options.getValue('toc-group') || '').split(',');
       this.groupTags = defaultTags.concat(userTags);
       this.regexp = new RegExp(`@(${this.groupTags.join('|')})`);
-      this.listenTo(this.owner, converter_1.Converter.EVENT_CREATE_DECLARATION, this.onDeclaration, 1000);
+      this.listenTo(this.owner, {
+        [events_1.PageEvent.BEGIN]: this._onRendererBeginPage,
+      });
     }
-    onDeclaration(context, reflection, node) {
-      if (!node) return;
-      const sourceFile = _ts.getSourceFileOfNode(node);
-      if (!sourceFile) return;
-      const comment = _ts.getJSDocCommentRanges(node, sourceFile.text);
-      if (!comment || !comment.length) return;
-      const { pos, end } = comment[0];
-      const rawComment = sourceFile.text.substring(pos, end);
-      const lines = rawComment.split(/\r\n?|\n/);
-      const nontagLines = lines.filter(line => !this.regexp.exec(line));
-      const tagLines = lines.filter(line => this.regexp.exec(line));
-      const rearrangedCommentText = []
-        .concat(nontagLines.slice(0, -1))
-        .concat(tagLines)
-        .concat(nontagLines.slice(-1))
-        .join('\n');
-      sourceFile.text = sourceFile.text.substring(0, pos) + rearrangedCommentText + sourceFile.text.substring(end);
-      console.log('my-toc-group-plugin==========>', sourceFile.text);
+    /**
+     * Triggered before a document will be rendered.
+     *
+     * @param page  An event object describing the current render operation.
+     */
+    _onRendererBeginPage(page) {
+      let model = page.model;
+      if (!(model instanceof reflections_1.Reflection)) {
+        return;
+      }
+      const trail = [];
+      while (
+        !(model instanceof reflections_1.ProjectReflection) &&
+        !model.kindOf(reflections_1.ReflectionKind.SomeModule)
+      ) {
+        trail.unshift(model);
+        model = model.parent;
+      }
+      const tocRestriction = this.owner.toc;
+      page.toc = new NavigationItem_1.NavigationItem();
+      console.log(tocRestriction);
+      TocGroupPlugin_1.buildGroupedToc(model, trail, page.toc, tocRestriction);
     }
-  };
-  TocGroupPlugin = __decorate([components_1.Component({ name: 'toc-group' })], TocGroupPlugin);
+    /**
+     * Create a toc navigation item structure.
+     *
+     * @param model   The models whose children should be written to the toc.
+     * @param trail   Defines the active trail of expanded toc entries.
+     * @param parent  The parent [[NavigationItem]] the toc should be appended to.
+     * @param restriction  The restricted table of contents.
+     */
+    static buildGroupedToc(model, trail, parent, restriction) {
+      const index = trail.indexOf(model);
+      const children = model['children'] || [];
+      if (index < trail.length - 1 && children.length > 40) {
+        const child = trail[index + 1];
+        const item = NavigationItem_1.NavigationItem.create(child, parent, true);
+        item.isInPath = true;
+        item.isCurrent = false;
+        TocGroupPlugin_1.buildGroupedToc(child, trail, item);
+      } else {
+        children.forEach(child => {
+          if (restriction && restriction.length > 0 && restriction.indexOf(child.name) === -1) {
+            return;
+          }
+          if (child.kindOf(reflections_1.ReflectionKind.SomeModule)) {
+            return;
+          }
+          const item = NavigationItem_1.NavigationItem.create(child, parent, true);
+          if (trail.indexOf(child) !== -1) {
+            item.isInPath = true;
+            item.isCurrent = trail[trail.length - 1] === child;
+            TocGroupPlugin_1.buildGroupedToc(child, trail, item);
+          }
+        });
+      }
+    }
+  });
+  TocGroupPlugin = TocGroupPlugin_1 = __decorate([components_1.Component({ name: 'toc-group' })], TocGroupPlugin);
   exports.TocGroupPlugin = TocGroupPlugin;
 });

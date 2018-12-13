@@ -1,15 +1,20 @@
-import { Reflection } from 'typedoc/dist/lib/models/reflections/abstract';
-import { Component, ConverterComponent } from 'typedoc/dist/lib/converter/components';
-import { Converter } from 'typedoc/dist/lib/converter/converter';
-import { Context } from 'typedoc/dist/lib/converter/context';
-import * as _ts from 'typedoc/dist/lib/ts-internal';
+import {
+  Reflection,
+  ReflectionKind,
+  ProjectReflection,
+  DeclarationReflection,
+} from 'typedoc/dist/lib/models/reflections';
+import { Component } from 'typedoc/dist/lib/converter/components';
 import { Options, OptionsReadMode } from 'typedoc/dist/lib/utils/options';
+import { PageEvent } from 'typedoc/dist/lib/output/events';
+import { TocPlugin } from 'typedoc/dist/lib/output/plugins/TocPlugin';
+import { NavigationItem } from 'typedoc/dist/lib/output/models/NavigationItem';
 
 /**
  * This plugin will generate a group menu for toc list.
  */
 @Component({ name: 'toc-group' })
-export class TocGroupPlugin extends ConverterComponent {
+export class TocGroupPlugin extends TocPlugin {
   groupTags: string[];
   regexp: RegExp;
 
@@ -22,34 +27,71 @@ export class TocGroupPlugin extends ConverterComponent {
     this.groupTags = defaultTags.concat(userTags);
     this.regexp = new RegExp(`@(${this.groupTags.join('|')})`);
 
-    this.listenTo(this.owner, Converter.EVENT_CREATE_DECLARATION, this.onDeclaration, 1000);
+    this.listenTo(this.owner, {
+      [PageEvent.BEGIN]: this._onRendererBeginPage,
+    });
   }
 
-  private onDeclaration(context: Context, reflection: Reflection, node?) {
-    if (!node) return;
+  /**
+   * Triggered before a document will be rendered.
+   *
+   * @param page  An event object describing the current render operation.
+   */
+  private _onRendererBeginPage(page: PageEvent) {
+    let model = page.model;
+    if (!(model instanceof Reflection)) {
+      return;
+    }
 
-    const sourceFile = _ts.getSourceFileOfNode(node);
-    if (!sourceFile) return;
+    const trail: Reflection[] = [];
+    while (!(model instanceof ProjectReflection) && !model.kindOf(ReflectionKind.SomeModule)) {
+      trail.unshift(model);
+      model = model.parent;
+    }
 
-    const comment = _ts.getJSDocCommentRanges(node, sourceFile.text);
-    if (!comment || !comment.length) return;
+    const tocRestriction = this.owner.toc;
+    page.toc = new NavigationItem();
 
-    const { pos, end } = comment[0];
-    const rawComment = sourceFile.text.substring(pos, end);
+    console.log(tocRestriction);
 
-    const lines = rawComment.split(/\r\n?|\n/);
+    TocGroupPlugin.buildGroupedToc(model, trail, page.toc, tocRestriction);
+  }
 
-    const nontagLines = lines.filter(line => !this.regexp.exec(line));
-    const tagLines = lines.filter(line => this.regexp.exec(line));
+  /**
+   * Create a toc navigation item structure.
+   *
+   * @param model   The models whose children should be written to the toc.
+   * @param trail   Defines the active trail of expanded toc entries.
+   * @param parent  The parent [[NavigationItem]] the toc should be appended to.
+   * @param restriction  The restricted table of contents.
+   */
+  static buildGroupedToc(model: Reflection, trail: Reflection[], parent: NavigationItem, restriction?: string[]) {
+    const index = trail.indexOf(model);
+    const children = model['children'] || [];
 
-    const rearrangedCommentText = []
-      .concat(nontagLines.slice(0, -1))
-      .concat(tagLines)
-      .concat(nontagLines.slice(-1))
-      .join('\n');
+    if (index < trail.length - 1 && children.length > 40) {
+      const child = trail[index + 1];
+      const item = NavigationItem.create(child, parent, true);
+      item.isInPath = true;
+      item.isCurrent = false;
+      TocGroupPlugin.buildGroupedToc(child, trail, item);
+    } else {
+      children.forEach((child: DeclarationReflection) => {
+        if (restriction && restriction.length > 0 && restriction.indexOf(child.name) === -1) {
+          return;
+        }
 
-    sourceFile.text = sourceFile.text.substring(0, pos) + rearrangedCommentText + sourceFile.text.substring(end);
+        if (child.kindOf(ReflectionKind.SomeModule)) {
+          return;
+        }
 
-    console.log('my-toc-group-plugin==========>', sourceFile.text);
+        const item = NavigationItem.create(child, parent, true);
+        if (trail.indexOf(child) !== -1) {
+          item.isInPath = true;
+          item.isCurrent = trail[trail.length - 1] === child;
+          TocGroupPlugin.buildGroupedToc(child, trail, item);
+        }
+      });
+    }
   }
 }
