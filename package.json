@@ -1,0 +1,32 @@
+{
+  "name": "typedoc-plugin-toc-group",
+  "version": "0.0.1",
+  "description": "A toc group menu plugin for typedoc",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "prepublish": "npm run build",
+    "precommit": "pretty-quick --staged"
+  },
+  "keywords": [
+    "typedocplugin",
+    "typedoc",
+    "toc"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tangkunyin/typedoc-plugin-toc-group"
+  },
+  "author": "Thomas Tang",
+  "license": "MIT",
+  "peerDependencies": {
+    "typedoc": "^0.13.0"
+  },
+  "devDependencies": {
+    "husky": "^1.2.0",
+    "prettier": "^1.15.3",
+    "pretty-quick": "^1.8.0",
+    "typedoc": "^0.13.0",
+    "typescript": "^3.2.2"
+  }
+}
