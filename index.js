@@ -1,13 +1,19 @@
-var plugin = require('./plugin');
-module.exports = function(PluginHost) {
-  var app = PluginHost.owner;
+import { PLUGIN_NAME, PLUGIN_SHORT_NAME, TocGroupPlugin } from './plugin';
+
+module.exports = PluginHost => {
+  const app = PluginHost.owner;
+
+  if (app.renderer.hasComponent(PLUGIN_NAME)) {
+    return;
+  }
+
   /**
    * used like so:
    * --toc-group group,kind,platform
    * or
    * -slt group,kind,platform
    */
-  app.options.addDeclaration({ name: 'toc-group', short: 'tocg' });
+  app.options.addDeclaration({ name: PLUGIN_NAME, short: PLUGIN_SHORT_NAME });
 
-  app.converter.addComponent('toc-group', plugin.TocGroupPlugin);
+  app.renderer.addComponent(PLUGIN_NAME, TocGroupPlugin);
 };

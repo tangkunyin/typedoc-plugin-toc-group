@@ -6,30 +6,45 @@ import {
 } from 'typedoc/dist/lib/models/reflections';
 import { Component } from 'typedoc/dist/lib/converter/components';
 import { Options, OptionsReadMode } from 'typedoc/dist/lib/utils/options';
-import { PageEvent } from 'typedoc/dist/lib/output/events';
-import { TocPlugin } from 'typedoc/dist/lib/output/plugins/TocPlugin';
+import { PageEvent, RendererEvent } from 'typedoc/dist/lib/output/events';
 import { NavigationItem } from 'typedoc/dist/lib/output/models/NavigationItem';
+import { RendererComponent } from 'typedoc/dist/lib/output/components';
+
+export const PLUGIN_NAME = 'toc-group';
+export const PLUGIN_SHORT_NAME = 'tocg';
 
 /**
  * This plugin will generate a group menu for toc list.
  */
-@Component({ name: 'toc-group' })
-export class TocGroupPlugin extends TocPlugin {
+@Component({ name: PLUGIN_NAME })
+export class TocGroupPlugin extends RendererComponent {
   groupTags: string[];
   regexp: RegExp;
+  navigation: NavigationItem;
 
   initialize() {
     const options: Options = this.application.options;
     options.read({}, OptionsReadMode.Prefetch);
 
     const defaultTags = ['group', 'kind', 'platform'];
-    const userTags = (options.getValue('toc-group') || '').split(',');
+    const userTags = (options.getValue(PLUGIN_NAME) || '').split(',');
     this.groupTags = defaultTags.concat(userTags);
     this.regexp = new RegExp(`@(${this.groupTags.join('|')})`);
 
     this.listenTo(this.owner, {
-      [PageEvent.BEGIN]: this._onRendererBeginPage,
+      [RendererEvent.BEGIN]: this.onBeginRenderer,
+      [PageEvent.BEGIN]: this.onBeginPage,
     });
+  }
+
+  /**
+   * Triggered before the renderer starts rendering a project.
+   *
+   * @param event  An event object describing the current render operation.
+   */
+  private onBeginRenderer(event: RendererEvent) {
+    console.log('onBeginRenderer 你到底走了没走');
+    this.navigation = this.owner.theme.getNavigation(event.project);
   }
 
   /**
@@ -37,7 +52,9 @@ export class TocGroupPlugin extends TocPlugin {
    *
    * @param page  An event object describing the current render operation.
    */
-  private _onRendererBeginPage(page: PageEvent) {
+  private onBeginPage(page: PageEvent) {
+    console.log('onBeginPage 你到底走了没走');
+
     let model = page.model;
     if (!(model instanceof Reflection)) {
       return;
@@ -51,8 +68,6 @@ export class TocGroupPlugin extends TocPlugin {
 
     const tocRestriction = this.owner.toc;
     page.toc = new NavigationItem();
-
-    console.log(tocRestriction);
 
     TocGroupPlugin.buildGroupedToc(model, trail, page.toc, tocRestriction);
   }
