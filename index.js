@@ -3,11 +3,11 @@ module.exports = function(PluginHost) {
   var app = PluginHost.owner;
   /**
    * used like so:
-   * --single-line-tags internal,external,preferred,module
+   * --toc-group tocGroup,platform,kind
    * or
-   * -slt internal,external,preferred,module
+   * -slt tocGroup,platform,kind
    */
-  app.options.addDeclaration({ name: 'single-line-tags', short: 'slt' });
+  app.options.addDeclaration({ name: 'toc-group', short: 'tocg' });
 
-  app.converter.addComponent('single-line-tags', plugin.SingleLineTagsPlugin);
+  app.converter.addComponent('toc-group', plugin.TocGroupPlugin);
 };
