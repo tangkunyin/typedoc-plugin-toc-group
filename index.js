@@ -1,9 +1,10 @@
-import { PLUGIN_NAME, PLUGIN_SHORT_NAME, TocGroupPlugin } from './plugin';
+'use strict';
 
-module.exports = PluginHost => {
+const P = require('./plugin');
+
+module.exports = function(PluginHost) {
   const app = PluginHost.owner;
-
-  if (app.renderer.hasComponent(PLUGIN_NAME)) {
+  if (app.converter.hasComponent(P.PLUGIN_NAME)) {
     return;
   }
 
@@ -13,7 +14,7 @@ module.exports = PluginHost => {
    * or
    * -slt group,kind,platform
    */
-  app.options.addDeclaration({ name: PLUGIN_NAME, short: PLUGIN_SHORT_NAME });
+  app.options.addDeclaration({ name: P.PLUGIN_NAME, short: P.PLUGIN_SHORT_NAME });
 
-  app.renderer.addComponent(PLUGIN_NAME, TocGroupPlugin);
+  app.converter.addComponent(P.PLUGIN_NAME, P.TocGroupPlugin);
 };

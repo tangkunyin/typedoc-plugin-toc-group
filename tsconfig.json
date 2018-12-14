@@ -1,15 +1,9 @@
 {
+  "compileOnSave": true,
   "compilerOptions": {
     "allowSyntheticDefaultImports": true,
     "declaration": false,
-    "emitDecoratorMetadata": true,
-    "importHelpers": false,
-    "noEmitHelpers": false,
-    "removeComments": true,
-    "sourceMap": false,
-    "suppressImplicitAnyIndexErrors": true,
-    "target": "es5",
-    "lib": ["es2016", "dom"],
+    "target": "es6",
     "moduleResolution": "node",
     "allowJs": true,
     "module": "umd",
