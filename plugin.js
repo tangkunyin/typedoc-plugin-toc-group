@@ -16,7 +16,6 @@ var __decorate =
 		define([
 			'require',
 			'exports',
-			'typedoc/dist/lib/models/reflections',
 			'typedoc/dist/lib/converter/components',
 			'typedoc/dist/lib/output/events',
 			'typedoc/dist/lib/output/models/NavigationItem',
@@ -27,8 +26,6 @@ var __decorate =
 })(function(require, exports) {
 	'use strict';
 	Object.defineProperty(exports, '__esModule', { value: true });
-	var TocGroupPlugin_1;
-	const reflections_1 = require('typedoc/dist/lib/models/reflections');
 	const components_1 = require('typedoc/dist/lib/converter/components');
 	const events_1 = require('typedoc/dist/lib/output/events');
 	const NavigationItem_1 = require('typedoc/dist/lib/output/models/NavigationItem');
@@ -36,10 +33,11 @@ var __decorate =
 	const TocPlugin_1 = require('typedoc/dist/lib/output/plugins/TocPlugin');
 	exports.PLUGIN_NAME = 'toc-group';
 	exports.PLUGIN_SHORT_NAME = 'tocg';
+	const DEFAULT_UNGROUPED_NAME = 'Others';
 	/**
 	 * This plugin will generate a group menu for toc list.
 	 */
-	let TocGroupPlugin = (TocGroupPlugin_1 = class TocGroupPlugin extends TocPlugin_1.TocPlugin {
+	let TocGroupPlugin = class TocGroupPlugin extends TocPlugin_1.TocPlugin {
 		/**
 		 * This plugin will generate a group menu for toc list.
 		 */
@@ -48,75 +46,14 @@ var __decorate =
 			this.defaultTags = ['group', 'kind', 'platform'];
 		}
 		initialize() {
+			super.initialize();
 			this.listenTo(this.owner, {
 				[converter_1.Converter.EVENT_BEGIN]: this.onBegin,
 				[converter_1.Converter.EVENT_RESOLVE_BEGIN]: this.onBeginResolve,
-				[events_1.PageEvent.BEGIN]: this.onBeginRendererPage,
+				[events_1.PageEvent.END]: this.onEndRendererPage,
 			});
 		}
-		onBegin() {
-			const options = this.application.options;
-			const userTags = (options.getValue(exports.PLUGIN_NAME) || '').split(',');
-			const groupTags = this.defaultTags.concat(userTags).filter(item => item.length);
-			this.regexp = new RegExp(`@(${groupTags.join('|')})`);
-		}
-		onBeginResolve(context) {
-			const tocGroups = [];
-			const homePath = `modules/_index_.${context.project.name.replace(/\-/g, '')}.html`;
-			const reflections = context.project.reflections;
-			for (const key in reflections) {
-				const ref = reflections[key];
-				const comment = ref.comment;
-				if (!comment || !comment.tags) continue;
-				let group = {};
-				for (const tag of comment.tags) {
-					if (this.regexp.test(`@${tag.tagName}`)) {
-						const groupKey = tag.text.split(/\r\n?|\n/)[0];
-						// 如果有，直接放进去
-						const existGroup = tocGroups.find((value, index, arr) => {
-							return groupKey in value;
-						});
-						if (existGroup) group = existGroup;
-						if (!group[groupKey]) group[groupKey] = [];
-						group[groupKey].push(ref.name);
-						break;
-					}
-				}
-				// 去重
-				if (Object.keys(group).length) {
-					const key = Object.keys(group)[0];
-					if (
-						!tocGroups.find((value, index, arr) => {
-							return key in value;
-						})
-					) {
-						tocGroups.push(group);
-					}
-				}
-			}
-			// Put them into context.project.
-			context.project[exports.PLUGIN_NAME] = { tocGroups, homePath };
-		}
-		/**
-		 * Triggered before a document will be rendered.
-		 *
-		 * @param page  An event object describing the current render operation.
-		 */
-		onBeginRendererPage(page) {
-			let model = page.model;
-			if (!(model instanceof reflections_1.Reflection)) {
-				return;
-			}
-			const trail = [];
-			while (!(model instanceof reflections_1.ProjectReflection) && !model.kindOf(reflections_1.ReflectionKind.SomeModule)) {
-				trail.unshift(model);
-				model = model.parent;
-			}
-			const tocRestriction = this.owner.toc;
-			page.toc = new NavigationItem_1.NavigationItem();
-			TocGroupPlugin_1.buildGroupToc(model, trail, page.toc, tocRestriction, page);
-		}
-		static isHomePage(page) {
+		isHomePage(page) {
 			if (page && page.url && page.project) {
 				try {
 					if (page.url.indexOf(page.project[exports.PLUGIN_NAME].homePath) > -1) {
@@ -128,41 +65,62 @@ var __decorate =
 			}
 			return false;
 		}
-		static buildGroupToc(model, trail, parent, restriction, page) {
-			const index = trail.indexOf(model);
-			const children = model['children'] || [];
-			if (index < trail.length - 1 && children.length > 40) {
-				const child = trail[index + 1];
-				const item = NavigationItem_1.NavigationItem.create(child, parent, true);
-				item.isInPath = true;
-				item.isCurrent = false;
-				TocGroupPlugin_1.buildGroupToc(child, trail, item);
-			} else {
-				children.forEach(child => {
-					if (restriction && restriction.length > 0 && restriction.indexOf(child.name) === -1) {
-						return;
+		onBegin() {
+			const options = this.application.options;
+			const userTags = (options.getValue(exports.PLUGIN_NAME) || '').split(',');
+			const groupTags = this.defaultTags.concat(userTags).filter(item => item.length);
+			this.regexp = new RegExp(`@(${groupTags.join('|')})`);
+		}
+		onBeginResolve(context) {
+			const mapedTocData = {};
+			const reflections = context.project.reflections;
+			for (const key in reflections) {
+				const ref = reflections[key];
+				const comment = ref.comment;
+				if (!comment || !comment.tags) continue;
+				for (const tag of comment.tags) {
+					if (this.regexp.test(`@${tag.tagName}`)) {
+						const groupKey = tag.text.split(/\r\n?|\n/)[0];
+						if (!mapedTocData[groupKey]) mapedTocData[groupKey] = [];
+						mapedTocData[groupKey].push(ref.name);
+						break;
 					}
-					if (child.kindOf(reflections_1.ReflectionKind.SomeModule)) {
-						return;
-					}
-					const item = NavigationItem_1.NavigationItem.create(child, parent, true);
-					if (this.isHomePage(page)) {
-						console.log(item.title);
-						// TODO.
-						if (item.title === 'xxx') {
-							const groupedToc = page.project[exports.PLUGIN_NAME].tocGroups;
-							console.log(groupedToc);
-						}
-					}
-					if (trail.indexOf(child) !== -1) {
-						item.isInPath = true;
-						item.isCurrent = trail[trail.length - 1] === child;
-						TocGroupPlugin_1.buildGroupToc(child, trail, item);
-					}
+				}
+			}
+			const homePath = `modules/_index_.${context.project.name.replace(/\-/g, '')}.html`;
+			// put them into context.project.
+			context.project[exports.PLUGIN_NAME] = { mapedTocData, homePath };
+		}
+		onEndRendererPage(page) {
+			if (this.isHomePage(page)) {
+				const { mapedTocData, homePath } = page.project[exports.PLUGIN_NAME];
+				if (!mapedTocData[DEFAULT_UNGROUPED_NAME]) {
+					mapedTocData[DEFAULT_UNGROUPED_NAME] = [];
+				}
+				page.toc.children.forEach(item => {
+					mapedTocData[DEFAULT_UNGROUPED_NAME].push(item.title);
 				});
+				let updatedToc = null;
+				if (typeof mapedTocData === 'object' && Object.keys(mapedTocData).length) {
+					updatedToc = Object.keys(mapedTocData).map(key => {
+						const groupedValue = mapedTocData[key];
+						const root = new NavigationItem_1.NavigationItem(key, homePath);
+						root.children = page.toc.children.filter(item => {
+							if (groupedValue.indexOf(item.title) > -1) {
+								item.parent = root;
+								return true;
+							}
+							return false;
+						});
+						return root;
+					});
+				}
+				if (updatedToc && updatedToc.length) {
+					page.toc.children = updatedToc;
+				}
 			}
 		}
-	});
-	TocGroupPlugin = TocGroupPlugin_1 = __decorate([components_1.Component({ name: exports.PLUGIN_NAME })], TocGroupPlugin);
+	};
+	TocGroupPlugin = __decorate([components_1.Component({ name: exports.PLUGIN_NAME })], TocGroupPlugin);
 	exports.TocGroupPlugin = TocGroupPlugin;
 });
