@@ -74,6 +74,7 @@ var __decorate =
 			this.regexp = new RegExp(`@(${groupTags.join('|')})`);
 		}
 		onBeginResolve(context) {
+			const groupedData = [];
 			const mapedTocData = {};
 			const reflections = context.project.reflections;
 			for (const key in reflections) {
@@ -82,6 +83,7 @@ var __decorate =
 				if (!comment || !comment.tags) continue;
 				for (const tag of comment.tags) {
 					if (this.regexp.test(`@${tag.tagName}`)) {
+						groupedData.push(ref.name);
 						const groupKey = tag.text.split(/\r\n?|\n/)[0];
 						if (!mapedTocData[groupKey]) mapedTocData[groupKey] = [];
 						mapedTocData[groupKey].push(ref.name);
@@ -91,7 +93,7 @@ var __decorate =
 			}
 			const homePath = `modules/_index_.${context.project.name.replace(/\-/g, '')}.html`;
 			// put them into context.project.
-			context.project[exports.PLUGIN_NAME] = { mapedTocData, homePath };
+			context.project[exports.PLUGIN_NAME] = { groupedData, mapedTocData, homePath };
 		}
 		/**
 		 * Triggered before a document will be rendered.
@@ -115,13 +117,17 @@ var __decorate =
 		}
 		buildGroupTocContent(page) {
 			if (this.isHomePage(page)) {
-				const { mapedTocData, homePath } = page.project[exports.PLUGIN_NAME];
+				const { groupedData, mapedTocData, homePath } = page.project[exports.PLUGIN_NAME];
+				// set ungrouped and remove grouped data.
 				if (!mapedTocData[DEFAULT_UNGROUPED_NAME]) {
-					mapedTocData[DEFAULT_UNGROUPED_NAME] = [];
+					const defaultGroups = [];
+					page.toc.children.forEach(item => {
+						if (groupedData.indexOf(item.title) === -1) {
+							defaultGroups.push(item.title);
+						}
+					});
+					if (defaultGroups.length) mapedTocData[DEFAULT_UNGROUPED_NAME] = defaultGroups;
 				}
-				page.toc.children.forEach(item => {
-					mapedTocData[DEFAULT_UNGROUPED_NAME].push(item.title);
-				});
 				let updatedToc = null;
 				if (typeof mapedTocData === 'object' && Object.keys(mapedTocData).length) {
 					updatedToc = Object.keys(mapedTocData).map(key => {

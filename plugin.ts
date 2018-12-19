@@ -50,15 +50,20 @@ export class TocGroupPlugin extends TocPlugin {
 	}
 
 	private onBeginResolve(context: Context) {
+		const groupedData = [];
 		const mapedTocData = {};
 		const reflections = context.project.reflections;
 
 		for (const key in reflections) {
 			const ref = reflections[key];
 			const comment = ref.comment;
+
 			if (!comment || !comment.tags) continue;
+
 			for (const tag of comment.tags) {
 				if (this.regexp.test(`@${tag.tagName}`)) {
+					groupedData.push(ref.name);
+
 					const groupKey = tag.text.split(/\r\n?|\n/)[0];
 					if (!mapedTocData[groupKey]) mapedTocData[groupKey] = [];
 					mapedTocData[groupKey].push(ref.name);
@@ -69,7 +74,7 @@ export class TocGroupPlugin extends TocPlugin {
 
 		const homePath = `modules/_index_.${context.project.name.replace(/\-/g, '')}.html`;
 		// put them into context.project.
-		context.project[PLUGIN_NAME] = { mapedTocData, homePath };
+		context.project[PLUGIN_NAME] = { groupedData, mapedTocData, homePath };
 	}
 
 	/**
@@ -98,13 +103,18 @@ export class TocGroupPlugin extends TocPlugin {
 
 	private buildGroupTocContent(page: PageEvent) {
 		if (this.isHomePage(page)) {
-			const { mapedTocData, homePath } = page.project[PLUGIN_NAME];
+			const { groupedData, mapedTocData, homePath } = page.project[PLUGIN_NAME];
+
+			// set ungrouped and remove grouped data.
 			if (!mapedTocData[DEFAULT_UNGROUPED_NAME]) {
-				mapedTocData[DEFAULT_UNGROUPED_NAME] = [];
+				const defaultGroups = [];
+				page.toc.children.forEach((item: NavigationItem) => {
+					if (groupedData.indexOf(item.title) === -1) {
+						defaultGroups.push(item.title);
+					}
+				});
+				if (defaultGroups.length) mapedTocData[DEFAULT_UNGROUPED_NAME] = defaultGroups;
 			}
-			page.toc.children.forEach((item: NavigationItem) => {
-				mapedTocData[DEFAULT_UNGROUPED_NAME].push(item.title);
-			});
 
 			let updatedToc = null;
 			if (typeof mapedTocData === 'object' && Object.keys(mapedTocData).length) {
