@@ -16,6 +16,7 @@ var __decorate =
 		define([
 			'require',
 			'exports',
+			'typedoc/dist/lib/models/reflections',
 			'typedoc/dist/lib/converter/components',
 			'typedoc/dist/lib/output/events',
 			'typedoc/dist/lib/output/models/NavigationItem',
@@ -26,6 +27,7 @@ var __decorate =
 })(function(require, exports) {
 	'use strict';
 	Object.defineProperty(exports, '__esModule', { value: true });
+	const reflections_1 = require('typedoc/dist/lib/models/reflections');
 	const components_1 = require('typedoc/dist/lib/converter/components');
 	const events_1 = require('typedoc/dist/lib/output/events');
 	const NavigationItem_1 = require('typedoc/dist/lib/output/models/NavigationItem');
@@ -50,7 +52,7 @@ var __decorate =
 			this.listenTo(this.owner, {
 				[converter_1.Converter.EVENT_BEGIN]: this.onBegin,
 				[converter_1.Converter.EVENT_RESOLVE_BEGIN]: this.onBeginResolve,
-				[events_1.PageEvent.END]: this.onEndRendererPage,
+				[events_1.PageEvent.BEGIN]: this.onBeginRendererPage,
 			});
 		}
 		isHomePage(page) {
@@ -91,7 +93,27 @@ var __decorate =
 			// put them into context.project.
 			context.project[exports.PLUGIN_NAME] = { mapedTocData, homePath };
 		}
-		onEndRendererPage(page) {
+		/**
+		 * Triggered before a document will be rendered.
+		 *
+		 * @param page  An event object describing the current render operation.
+		 */
+		onBeginRendererPage(page) {
+			let model = page.model;
+			if (!(model instanceof reflections_1.Reflection)) {
+				return;
+			}
+			const trail = [];
+			while (!(model instanceof reflections_1.ProjectReflection) && !model.kindOf(reflections_1.ReflectionKind.SomeModule)) {
+				trail.unshift(model);
+				model = model.parent;
+			}
+			const tocRestriction = this.owner.toc;
+			page.toc = new NavigationItem_1.NavigationItem();
+			TocPlugin_1.TocPlugin.buildToc(model, trail, page.toc, tocRestriction);
+			this.buildGroupTocContent(page);
+		}
+		buildGroupTocContent(page) {
 			if (this.isHomePage(page)) {
 				const { mapedTocData, homePath } = page.project[exports.PLUGIN_NAME];
 				if (!mapedTocData[DEFAULT_UNGROUPED_NAME]) {
@@ -105,6 +127,7 @@ var __decorate =
 					updatedToc = Object.keys(mapedTocData).map(key => {
 						const groupedValue = mapedTocData[key];
 						const root = new NavigationItem_1.NavigationItem(key, homePath);
+						root['groupTitle'] = key;
 						root.children = page.toc.children.filter(item => {
 							if (groupedValue.indexOf(item.title) > -1) {
 								item.parent = root;

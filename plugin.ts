@@ -1,5 +1,6 @@
+import { Reflection, ReflectionKind, ProjectReflection } from 'typedoc/dist/lib/models/reflections';
 import { Component } from 'typedoc/dist/lib/converter/components';
-import { Options, OptionsReadMode } from 'typedoc/dist/lib/utils/options';
+import { Options } from 'typedoc/dist/lib/utils/options';
 import { PageEvent } from 'typedoc/dist/lib/output/events';
 import { NavigationItem } from 'typedoc/dist/lib/output/models/NavigationItem';
 import { Converter } from 'typedoc/dist/lib/converter/converter';
@@ -24,7 +25,7 @@ export class TocGroupPlugin extends TocPlugin {
 		this.listenTo(this.owner, {
 			[Converter.EVENT_BEGIN]: this.onBegin,
 			[Converter.EVENT_RESOLVE_BEGIN]: this.onBeginResolve,
-			[PageEvent.END]: this.onEndRendererPage,
+			[PageEvent.BEGIN]: this.onBeginRendererPage,
 		});
 	}
 
@@ -71,7 +72,31 @@ export class TocGroupPlugin extends TocPlugin {
 		context.project[PLUGIN_NAME] = { mapedTocData, homePath };
 	}
 
-	private onEndRendererPage(page: PageEvent) {
+	/**
+	 * Triggered before a document will be rendered.
+	 *
+	 * @param page  An event object describing the current render operation.
+	 */
+	private onBeginRendererPage(page: PageEvent) {
+		let model = page.model;
+		if (!(model instanceof Reflection)) {
+			return;
+		}
+
+		const trail: Reflection[] = [];
+		while (!(model instanceof ProjectReflection) && !model.kindOf(ReflectionKind.SomeModule)) {
+			trail.unshift(model);
+			model = model.parent;
+		}
+
+		const tocRestriction = this.owner.toc;
+		page.toc = new NavigationItem();
+		TocPlugin.buildToc(model, trail, page.toc, tocRestriction);
+
+		this.buildGroupTocContent(page);
+	}
+
+	private buildGroupTocContent(page: PageEvent) {
 		if (this.isHomePage(page)) {
 			const { mapedTocData, homePath } = page.project[PLUGIN_NAME];
 			if (!mapedTocData[DEFAULT_UNGROUPED_NAME]) {
@@ -86,6 +111,7 @@ export class TocGroupPlugin extends TocPlugin {
 				updatedToc = Object.keys(mapedTocData).map((key: string) => {
 					const groupedValue = mapedTocData[key];
 					const root = new NavigationItem(key, homePath);
+					root['groupTitle'] = key;
 					root.children = page.toc.children.filter((item: NavigationItem) => {
 						if (groupedValue.indexOf(item.title) > -1) {
 							item.parent = root;
