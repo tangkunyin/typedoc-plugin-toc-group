@@ -118,19 +118,18 @@ var __decorate =
 		buildGroupTocContent(page) {
 			if (this.isHomePage(page)) {
 				const { groupedData, mapedTocData, homePath } = page.project[exports.PLUGIN_NAME];
-				// set ungrouped and remove grouped data.
-				if (!mapedTocData[DEFAULT_UNGROUPED_NAME]) {
-					const defaultGroups = [];
-					page.toc.children.forEach(item => {
-						if (groupedData.indexOf(item.title) === -1) {
-							defaultGroups.push(item.title);
-						}
-					});
-					if (defaultGroups.length) mapedTocData[DEFAULT_UNGROUPED_NAME] = defaultGroups;
-				}
-				let updatedToc = null;
 				if (typeof mapedTocData === 'object' && Object.keys(mapedTocData).length) {
-					updatedToc = Object.keys(mapedTocData).map(key => {
+					// set ungrouped and remove grouped data.
+					if (!mapedTocData[DEFAULT_UNGROUPED_NAME]) {
+						const defaultGroups = [];
+						page.toc.children.forEach(item => {
+							if (groupedData.indexOf(item.title) === -1) {
+								defaultGroups.push(item.title);
+							}
+						});
+						if (defaultGroups.length) mapedTocData[DEFAULT_UNGROUPED_NAME] = defaultGroups;
+					}
+					const updatedToc = Object.keys(mapedTocData).map(key => {
 						const groupedValue = mapedTocData[key];
 						const root = new NavigationItem_1.NavigationItem(key, homePath);
 						root['groupTitle'] = key;
@@ -143,9 +142,9 @@ var __decorate =
 						});
 						return root;
 					});
-				}
-				if (updatedToc && updatedToc.length) {
-					page.toc.children = updatedToc;
+					if (updatedToc && updatedToc.length) {
+						page.toc.children = updatedToc;
+					}
 				}
 			}
 		}
