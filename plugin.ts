@@ -104,21 +104,19 @@ export class TocGroupPlugin extends TocPlugin {
 	private buildGroupTocContent(page: PageEvent) {
 		if (this.isHomePage(page)) {
 			const { groupedData, mapedTocData, homePath } = page.project[PLUGIN_NAME];
-
-			// set ungrouped and remove grouped data.
-			if (!mapedTocData[DEFAULT_UNGROUPED_NAME]) {
-				const defaultGroups = [];
-				page.toc.children.forEach((item: NavigationItem) => {
-					if (groupedData.indexOf(item.title) === -1) {
-						defaultGroups.push(item.title);
-					}
-				});
-				if (defaultGroups.length) mapedTocData[DEFAULT_UNGROUPED_NAME] = defaultGroups;
-			}
-
-			let updatedToc = null;
 			if (typeof mapedTocData === 'object' && Object.keys(mapedTocData).length) {
-				updatedToc = Object.keys(mapedTocData).map((key: string) => {
+				// set ungrouped and remove grouped data.
+				if (!mapedTocData[DEFAULT_UNGROUPED_NAME]) {
+					const defaultGroups = [];
+					page.toc.children.forEach((item: NavigationItem) => {
+						if (groupedData.indexOf(item.title) === -1) {
+							defaultGroups.push(item.title);
+						}
+					});
+					if (defaultGroups.length) mapedTocData[DEFAULT_UNGROUPED_NAME] = defaultGroups;
+				}
+
+				const updatedToc = Object.keys(mapedTocData).map((key: string) => {
 					const groupedValue = mapedTocData[key];
 					const root = new NavigationItem(key, homePath);
 					root['groupTitle'] = key;
@@ -131,10 +129,10 @@ export class TocGroupPlugin extends TocPlugin {
 					});
 					return root;
 				});
-			}
 
-			if (updatedToc && updatedToc.length) {
-				page.toc.children = updatedToc;
+				if (updatedToc && updatedToc.length) {
+					page.toc.children = updatedToc;
+				}
 			}
 		}
 	}
