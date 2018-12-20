@@ -10,12 +10,18 @@ It can help you group your api list by `@platform`、`@kind`、`@group`. Just pu
 npm install --save-dev typedoc-plugin-toc-group
 ```
 
+## Usage
+
+```
+npx typedoc --out ./typings/doc  ./typings  --module umd --theme ./node_modules/typedoc-default-themes-extension/bin/default"
+```
+
 ## What does it look like?
 
 ![demo-snapshot](snapshot.png)
 
 ## Something else...
 
-I have made a little change in [typedoc-default-themes](https://github.com/tangkunyin/typedoc-default-themes)
+I have made a little change in [typedoc-default-themes-extension](https://github.com/tangkunyin/typedoc-default-themes-extension)
 
 In order to show a bigger group title to users, you'd better install this theme first.
