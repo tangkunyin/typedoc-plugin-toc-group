@@ -12,6 +12,8 @@ export const PLUGIN_SHORT_NAME = 'tocg';
 
 const DEFAULT_UNGROUPED_NAME = 'Others';
 
+const DEPRECATED_REGEXP = new RegExp(/^@deprecated$/);
+
 /**
  * This plugin will generate a group menu for toc list.
  */
@@ -51,6 +53,7 @@ export class TocGroupPlugin extends TocPlugin {
 
 	private onBeginResolve(context: Context) {
 		const groupedData = [];
+		const deprecatedData = new Set();
 		const mapedTocData = {};
 		const reflections = context.project.reflections;
 
@@ -61,6 +64,9 @@ export class TocGroupPlugin extends TocPlugin {
 			if (!comment || !comment.tags) continue;
 
 			for (const tag of comment.tags) {
+				// add deprecated item names
+				if (DEPRECATED_REGEXP.test(`@${tag.tagName}`)) deprecatedData.add(ref.name);
+				// add special tags
 				if (this.regexp.test(`@${tag.tagName}`)) {
 					groupedData.push(ref.name);
 
@@ -74,7 +80,7 @@ export class TocGroupPlugin extends TocPlugin {
 
 		const homePath = `modules/_index_.${context.project.name.replace(/\-/g, '')}.html`;
 		// put them into context.project.
-		context.project[PLUGIN_NAME] = { groupedData, mapedTocData, homePath };
+		context.project[PLUGIN_NAME] = { groupedData, deprecatedData, mapedTocData, homePath };
 	}
 
 	/**
@@ -103,7 +109,7 @@ export class TocGroupPlugin extends TocPlugin {
 
 	private buildGroupTocContent(page: PageEvent) {
 		if (this.isHomePage(page)) {
-			const { groupedData, mapedTocData, homePath } = page.project[PLUGIN_NAME];
+			const { groupedData, deprecatedData, mapedTocData, homePath } = page.project[PLUGIN_NAME];
 			if (typeof mapedTocData === 'object' && Object.keys(mapedTocData).length) {
 				// set ungrouped and remove grouped data.
 				if (!mapedTocData[DEFAULT_UNGROUPED_NAME]) {
@@ -115,12 +121,14 @@ export class TocGroupPlugin extends TocPlugin {
 					});
 					if (defaultGroups.length) mapedTocData[DEFAULT_UNGROUPED_NAME] = defaultGroups;
 				}
-
 				const updatedToc = Object.keys(mapedTocData).map((key: string) => {
 					const groupedValue = mapedTocData[key];
 					const root = new NavigationItem(key, homePath);
 					root['groupTitle'] = key;
 					root.children = page.toc.children.filter((item: NavigationItem) => {
+						if (deprecatedData.has(item.title)) {
+							item['deprecated'] = true;
+						}
 						if (groupedValue.indexOf(item.title) > -1) {
 							item.parent = root;
 							return true;
@@ -129,7 +137,6 @@ export class TocGroupPlugin extends TocPlugin {
 					});
 					return root;
 				});
-
 				if (updatedToc && updatedToc.length) {
 					page.toc.children = updatedToc;
 				}
