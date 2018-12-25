@@ -36,6 +36,7 @@ var __decorate =
 	exports.PLUGIN_NAME = 'toc-group';
 	exports.PLUGIN_SHORT_NAME = 'tocg';
 	const DEFAULT_UNGROUPED_NAME = 'Others';
+	const DEPRECATED_REGEXP = new RegExp(/^@deprecated$/);
 	/**
 	 * This plugin will generate a group menu for toc list.
 	 */
@@ -75,6 +76,7 @@ var __decorate =
 		}
 		onBeginResolve(context) {
 			const groupedData = [];
+			const deprecatedData = new Set();
 			const mapedTocData = {};
 			const reflections = context.project.reflections;
 			for (const key in reflections) {
@@ -82,6 +84,9 @@ var __decorate =
 				const comment = ref.comment;
 				if (!comment || !comment.tags) continue;
 				for (const tag of comment.tags) {
+					// add deprecated item names
+					if (DEPRECATED_REGEXP.test(`@${tag.tagName}`)) deprecatedData.add(ref.name);
+					// add special tags
 					if (this.regexp.test(`@${tag.tagName}`)) {
 						groupedData.push(ref.name);
 						const groupKey = tag.text.split(/\r\n?|\n/)[0];
@@ -93,7 +98,7 @@ var __decorate =
 			}
 			const homePath = `modules/_index_.${context.project.name.replace(/\-/g, '')}.html`;
 			// put them into context.project.
-			context.project[exports.PLUGIN_NAME] = { groupedData, mapedTocData, homePath };
+			context.project[exports.PLUGIN_NAME] = { groupedData, deprecatedData, mapedTocData, homePath };
 		}
 		/**
 		 * Triggered before a document will be rendered.
@@ -117,7 +122,7 @@ var __decorate =
 		}
 		buildGroupTocContent(page) {
 			if (this.isHomePage(page)) {
-				const { groupedData, mapedTocData, homePath } = page.project[exports.PLUGIN_NAME];
+				const { groupedData, deprecatedData, mapedTocData, homePath } = page.project[exports.PLUGIN_NAME];
 				if (typeof mapedTocData === 'object' && Object.keys(mapedTocData).length) {
 					// set ungrouped and remove grouped data.
 					if (!mapedTocData[DEFAULT_UNGROUPED_NAME]) {
@@ -134,6 +139,9 @@ var __decorate =
 						const root = new NavigationItem_1.NavigationItem(key, homePath);
 						root['groupTitle'] = key;
 						root.children = page.toc.children.filter(item => {
+							if (deprecatedData.has(item.title)) {
+								item['deprecated'] = true;
+							}
 							if (groupedValue.indexOf(item.title) > -1) {
 								item.parent = root;
 								return true;
