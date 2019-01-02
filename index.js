@@ -15,7 +15,9 @@ module.exports = function(PluginHost) {
 	 * used like so:
 	 * --toc-group group,kind,platform
 	 * or
-	 * -slt group,kind,platform
+	 * -tocg group,kind,platform
+	 *************** Notice **************
+	 * if you insert like !256，the type 256 will not be shown in toc menu.(num. value is defined in enum ReflectionKind)
 	 */
 	app.options.addDeclaration({ name: P.PLUGIN_NAME, short: P.PLUGIN_SHORT_NAME });
 

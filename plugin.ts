@@ -80,7 +80,7 @@ export class TocGroupPlugin extends TocPlugin {
 
 		const homePath = `modules/_index_.${context.project.name.replace(/\-/g, '')}.html`;
 		// put them into context.project.
-		context.project[PLUGIN_NAME] = { groupedData, deprecatedData, mapedTocData, homePath };
+		context.project[PLUGIN_NAME] = { groupedData, deprecatedData, mapedTocData, homePath, regexp: this.regexp };
 	}
 
 	/**
@@ -109,7 +109,7 @@ export class TocGroupPlugin extends TocPlugin {
 
 	private buildGroupTocContent(page: PageEvent) {
 		if (this.isHomePage(page)) {
-			const { groupedData, deprecatedData, mapedTocData, homePath } = page.project[PLUGIN_NAME];
+			const { groupedData, deprecatedData, mapedTocData, homePath, regexp } = page.project[PLUGIN_NAME];
 			if (typeof mapedTocData === 'object' && Object.keys(mapedTocData).length) {
 				// set ungrouped and remove grouped data.
 				if (!mapedTocData[DEFAULT_UNGROUPED_NAME]) {
@@ -126,6 +126,7 @@ export class TocGroupPlugin extends TocPlugin {
 					const root = new NavigationItem(key, homePath);
 					root['groupTitle'] = key;
 					root.children = page.toc.children.filter((item: NavigationItem) => {
+						if (regexp.test(`@!${item.reflection.kind}`)) return false;
 						if (deprecatedData.has(item.title)) {
 							item['deprecated'] = true;
 						}

@@ -14,7 +14,13 @@ npm install --save-dev typedoc-plugin-toc-group
 
 ```
 npx typedoc --out ./typings/doc  ./typings  --module umd --theme ./node_modules/typedoc-default-themes-extension/bin/default"
+
+// or make a filter. if you don't want show Interfaces, we can use this
+npx .... --tocg !256 --theme ./node_modules/typedoc-default-themes-extension/bin/default
+
 ```
+
+the enum number were defined here: [ReflectionKind](https://github.com/TypeStrong/typedoc/blob/master/src/lib/models/reflections/abstract.ts)
 
 ## What does it look like?
 
