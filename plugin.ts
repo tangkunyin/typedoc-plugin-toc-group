@@ -78,7 +78,7 @@ export class TocGroupPlugin extends TocPlugin {
 			}
 		}
 
-		const homePath = `modules/_index_.${context.project.name.replace(/\-/g, '')}.html`;
+		const homePath = this.application.options.getValue('homePath') || `modules/_index_.${context.project.name.replace(/\-/g, '')}.html`;
 		// put them into context.project.
 		context.project[PLUGIN_NAME] = { groupedData, deprecatedData, mapedTocData, homePath, regexp: this.regexp };
 	}
