@@ -96,7 +96,7 @@ var __decorate =
 					}
 				}
 			}
-			const homePath = `modules/_index_.${context.project.name.replace(/\-/g, '')}.html`;
+			const homePath = this.application.options.getValue('homePath') || `modules/_index_.${context.project.name.replace(/\-/g, '')}.html`;
 			// put them into context.project.
 			context.project[exports.PLUGIN_NAME] = { groupedData, deprecatedData, mapedTocData, homePath, regexp: this.regexp };
 		}
