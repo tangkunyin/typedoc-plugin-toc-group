@@ -31,22 +31,9 @@ export class TocGroupPlugin extends TocPlugin {
 		});
 	}
 
-	isHomePage(page: PageEvent) {
-		if (page && page.url && page.project) {
-			try {
-				if (page.url.indexOf(page.project[PLUGIN_NAME].homePath) > -1) {
-					return true;
-				}
-			} catch (e) {
-				console.log(e);
-			}
-		}
-		return false;
-	}
-
 	private onBegin() {
 		const options: Options = this.application.options;
-		const userTags = (options.getValue(PLUGIN_NAME) || '').split(',');
+		const userTags = (options.getValue(PLUGIN_NAME) || '').toString().split(',');
 		const groupTags = this.defaultTags.concat(userTags).filter(item => item.length);
 		this.regexp = new RegExp(`@(${groupTags.join('|')})`);
 	}
@@ -108,39 +95,37 @@ export class TocGroupPlugin extends TocPlugin {
 	}
 
 	private buildGroupTocContent(page: PageEvent) {
-		if (this.isHomePage(page)) {
-			const { groupedData, deprecatedData, mapedTocData, homePath, regexp } = page.project[PLUGIN_NAME];
-			if (typeof mapedTocData === 'object' && Object.keys(mapedTocData).length) {
-				// set ungrouped and remove grouped data.
-				if (!mapedTocData[DEFAULT_UNGROUPED_NAME]) {
-					const defaultGroups = [];
-					page.toc.children.forEach((item: NavigationItem) => {
-						if (groupedData.indexOf(item.title) === -1) {
-							defaultGroups.push(item.title);
-						}
-					});
-					if (defaultGroups.length) mapedTocData[DEFAULT_UNGROUPED_NAME] = defaultGroups;
-				}
-				const updatedToc = Object.keys(mapedTocData).map((key: string) => {
-					const groupedValue = mapedTocData[key];
-					const root = new NavigationItem(key, homePath);
-					root['groupTitle'] = key;
-					root.children = page.toc.children.filter((item: NavigationItem) => {
-						if (regexp.test(`@!${item.reflection.kind}`)) return false;
-						if (deprecatedData.has(item.title)) {
-							item['deprecated'] = true;
-						}
-						if (groupedValue.indexOf(item.title) > -1) {
-							item.parent = root;
-							return true;
-						}
-						return false;
-					});
-					return root;
+		const { groupedData, deprecatedData, mapedTocData, homePath, regexp } = page.project[PLUGIN_NAME];
+		if (typeof mapedTocData === 'object' && Object.keys(mapedTocData).length) {
+			// set ungrouped and remove grouped data.
+			if (!mapedTocData[DEFAULT_UNGROUPED_NAME]) {
+				const defaultGroups = [];
+				page.toc.children.forEach((item: NavigationItem) => {
+					if (groupedData.indexOf(item.title) === -1) {
+						defaultGroups.push(item.title);
+					}
 				});
-				if (updatedToc && updatedToc.length) {
-					page.toc.children = updatedToc;
-				}
+				if (defaultGroups.length) mapedTocData[DEFAULT_UNGROUPED_NAME] = defaultGroups;
+			}
+			const updatedToc = Object.keys(mapedTocData).map((key: string) => {
+				const groupedValue = mapedTocData[key];
+				const root = new NavigationItem(key, homePath);
+				root['groupTitle'] = key;
+				root.children = page.toc.children.filter((item: NavigationItem) => {
+					if (regexp.test(`@!${item.reflection.kind}`)) return false;
+					if (deprecatedData.has(item.title)) {
+						item['deprecated'] = true;
+					}
+					if (groupedValue.indexOf(item.title) > -1) {
+						item.parent = root;
+						return true;
+					}
+					return false;
+				});
+				return root;
+			});
+			if (updatedToc && updatedToc.length) {
+				page.toc.children = updatedToc;
 			}
 		}
 	}
